@@ -63,7 +63,8 @@ public class DiceRollWorker implements Runnable {
                     PostfixPermutation permutation = new PostfixPermutation(entities, i);
                     try {
                         permutation.calculate();
-                        int rank = DiceRollComputer.rank(permutation.getResult());
+                        DiceRollComputer DRC = new DiceRollComputer();
+                        int rank = DRC.rank(permutation.getResult());
                         if (rank > 0) {
                             permutation.setTier(rank);
                             permutationSet.add(permutation);

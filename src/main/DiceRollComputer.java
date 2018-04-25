@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Formatter;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -28,18 +29,21 @@ import util.PostfixTemplate;
 public class DiceRollComputer {
    
    
-    private static int numThreads = 4;
-    private static float tickRate = 2;
-    private static Object[] lastRoll;
+    private int numThreads = 4;
+    private float tickRate = 2;
+    private Object[] lastRoll;
    
     /** number of samples used to calculate rate */
-    private static int numRateSamples = 10;
+    private int numRateSamples = 10;
     /** Rate weights - for smoothing multiple rate samples and preventing microsoft-esque eta calculation */
-    static float[] rateWeights;
-    static {
-        updateRateWeights();
-    }
-    private static void updateRateWeights() {
+    private float[] rateWeights;
+
+    
+    public int[] tiers = new int[] {
+        3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107
+    };
+    
+    private void updateRateWeights() {
         rateWeights = new float[numRateSamples-1];
         for (int i = 0; i < rateWeights.length; i++) {
             rateWeights[i] = (float)Math.pow(2, -1*(i+1));
@@ -47,18 +51,12 @@ public class DiceRollComputer {
     }
    
    
-   
-   
-   
-    public static void main(String[] args) {
-        try {
-            takeUserInput();
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
+    
+    public DiceRollComputer() {
+    	
     }
    
-    private static void takeUserInput() throws IOException {
+    public void takeUserInput() throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String line;
         System.out.println("Stupid Dice Mather a Go-Go.");
@@ -110,20 +108,20 @@ public class DiceRollComputer {
        
     }
    
-    private static void useRandomRoll(int n) {
+    private void useRandomRoll(int n) {
         int[] diceRoll = Dice.rollNDie6(n);
         System.out.println("Rolling " + n + " die.");
         simulate(diceRoll);
     }
    
-    private static void simulate(int[] diceRoll) {
+    String simulate(int[] diceRoll) {
         Object[] array = new Object[diceRoll.length];
         for (int i = 0; i < diceRoll.length; i++)
             array[i] = diceRoll[i];
-        simulate(array);
+        return simulate(array);
     }
    
-    private static void simulate(Object[] diceRoll) {
+    private String simulate(Object[] diceRoll) {
         long startTime = System.currentTimeMillis();
         lastRoll = diceRoll;
        
@@ -254,14 +252,15 @@ public class DiceRollComputer {
         } catch (FileNotFoundException ex) {
             ex.printStackTrace();
         }
+        return getPermutations(permutations);
     }
    
-    private static void shiftRight(float[] array) {
+    private void shiftRight(float[] array) {
         for (int i = array.length-1; i > 0; i--)
             array[i] = array[i-1];
     }
    
-    private static float getAverageProgress(DiceRollWorker[] workers) {
+    private float getAverageProgress(DiceRollWorker[] workers) {
         float progress = 0;
         for (DiceRollWorker cdr : workers)
             progress += cdr.getProgress();
@@ -273,7 +272,7 @@ public class DiceRollComputer {
         return progress;
     }
    
-    private static float getSmoothRate(float[] rateSamples, int numSamples) {
+    private float getSmoothRate(float[] rateSamples, int numSamples) {
 //        System.out.println("    " + Arrays.toString(rateSamples));
 //        if (numSamples == 1) return rateSamples[0];
         float smoothRate = 0;
@@ -294,7 +293,7 @@ public class DiceRollComputer {
         return smoothRate;
     }
    
-    private static void printPermutations(Collection<PostfixPermutation> permutations) {
+    private void printPermutations(Collection<PostfixPermutation> permutations) {
         List<PostfixPermutation> permutationsList = new LinkedList<>(permutations);
         Collections.sort(permutationsList, comp);
         int lastTier = -1;
@@ -305,7 +304,7 @@ public class DiceRollComputer {
             if (currentTier != lastTier) {
                 System.out.println(" ====== TIER " + currentTier + " ====== ");
                 numPrinted = 0;
-            } else if (numPrinted == 100) {
+            } else if (numPrinted == 10) {
                 continue;
             }
             System.out.printf("%3d. %s = %3d [Tier %d]\n", numPrinted+1, p.getExpression(), (int) p.getResult().doubleValue(), currentTier);
@@ -314,7 +313,33 @@ public class DiceRollComputer {
         }       
     }
    
-    private static void writeToFile(Collection<PostfixPermutation> permutations) throws FileNotFoundException {
+    private String getPermutations(Collection<PostfixPermutation> permutations) {
+        List<PostfixPermutation> permutationsList = new LinkedList<>(permutations);
+        Collections.sort(permutationsList, comp);
+        int lastTier = -1;
+        int numPrinted = 0;
+        StringBuilder sb = new StringBuilder();
+        Formatter formatter = new Formatter(sb);
+        
+        String temp   = "";
+        for (PostfixPermutation p : permutationsList) {
+            int currentTier = p.getTier();
+           
+            if (currentTier != lastTier) {
+               sb.append(" ====== TIER " + currentTier + " ====== \n");
+                numPrinted = 0;
+            } else if (numPrinted == 10) {
+                continue;
+            }
+            temp = String.format("%3d. %s = %3d [Tier %d]\n", numPrinted+1, p.getExpression(), (int) p.getResult().doubleValue(), currentTier);
+            sb.append(temp);
+            numPrinted++;
+            lastTier = currentTier;
+        }
+        return sb.toString();
+    }
+   
+    private void writeToFile(Collection<PostfixPermutation> permutations) throws FileNotFoundException {
         File file = new File("allOutput.txt");
         FileOutputStream fos = new FileOutputStream(file);
         PrintWriter pw = new PrintWriter(fos);
@@ -326,7 +351,7 @@ public class DiceRollComputer {
         pw.close();
     }
    
-    private static Comparator<PostfixPermutation> comp = new Comparator<PostfixPermutation>() {
+    private Comparator<PostfixPermutation> comp = new Comparator<PostfixPermutation>() {
         @Override
         public int compare(PostfixPermutation o1, PostfixPermutation o2) {
             if (o2.getTier() == o1.getTier())
@@ -335,11 +360,7 @@ public class DiceRollComputer {
         }
     };
    
-    private static int[] tiers = new int[] {
-        3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107
-    };
-   
-    public static int rank (double value) {
+    public int rank (double value) {
         if ( Double.isInfinite(value)
           || Double.isNaN(value)
           || value < 0) return 0;
