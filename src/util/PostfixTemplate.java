@@ -73,8 +73,8 @@ public class PostfixTemplate {
 	 * @param numOperands  - The number of operands remaining. When this hits zero, only operators can be used.
 	 * @param numOperators - The number of operators remaining. This should never hit zero before operands hit zero.
 	 * @param expression   - The current expression that is being constructed. When finished, this will be used to create the template.
-	 * @param numStack	   - The depth of the number stack. Pulling from the operands increases this by 1. Pulling from the operators decreases this by 1. This number is not allowed to go below 1, ensuring only valid templates are generated.
-	 * @param templates	   - The Set of templates to add this to. Should a duplicate be created, it will be discarded.
+	 * @param numStack     - The depth of the number stack. Pulling from the operands increases this by 1. Pulling from the operators decreases this by 1. This number is not allowed to go below 1, ensuring only valid templates are generated.
+	 * @param templates    - The Set of templates to add this to. Should a duplicate be created, it will be discarded.
 	 * @return a count of all collisions that occurred during this operation. If this count is greater than zero, then extra work done.
 	 */
 	private static int generateValidTemplates(int numOperands, int numOperators, LinkedList<Character> expression, int numStack, Set<PostfixTemplate> templates) {
