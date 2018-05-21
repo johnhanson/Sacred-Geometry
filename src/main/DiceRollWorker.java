@@ -24,6 +24,11 @@ public class DiceRollWorker implements Runnable {
 	Set<PostfixPermutation> permutationSet = new HashSet<>();
 //	List<PostfixPermutation> permutationSet = new LinkedList<>();
 	
+	public int[] tiers = new int[] {
+		3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107
+	};
+	
+	
 	public void start() {
 		thread = new Thread(this);
 		thread.start();
@@ -53,6 +58,21 @@ public class DiceRollWorker implements Runnable {
 		return permutationSet;
 	}
 	
+	
+	
+	public int rank (double value) {
+		if ( Double.isInfinite(value)
+		  || Double.isNaN(value)
+		  || value < 0) return 0;
+		
+		for (int t = 0; t < tiers.length; t++) {
+			if (tiers[t] == value) {
+				return (t/3) + 1;
+			}
+		}
+		return 0;
+	}
+	
 	public void run() {
 		System.out.println("thread starting!");
 		for (i = startIndex; i < stopIndex; i++) {
@@ -64,8 +84,7 @@ public class DiceRollWorker implements Runnable {
 					PostfixPermutation permutation = new PostfixPermutation(entities, i);
 					try {
 						permutation.calculate();
-						DiceRollComputer DRC = new DiceRollComputer();
-						int rank = DRC.rank(permutation.getResult());
+						int rank = rank(permutation.getResult());
 						if (rank > 0) {
 							permutation.setTier(rank);
 							permutationSet.add(permutation);
