@@ -174,6 +174,7 @@ public class DiceRollComputer {
 			cdr.stopIndex = (i+1)*operatorSetsPerThread;
 			cdr.goalLevel = goalLevel;
 			cdr.threadNum = i;
+			cdr.foundEquation = false;
 			workers[i] = cdr;
 			System.out.printf("  Thread #%d using range (%4d..%4d)\n", i, cdr.startIndex, cdr.stopIndex);
 		}
