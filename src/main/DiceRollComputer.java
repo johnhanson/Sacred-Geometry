@@ -32,6 +32,9 @@ public class DiceRollComputer {
 	public int numThreads = 4;
 	private float tickRate = 2;
 	private Object[] lastRoll;
+	
+	//instead of an enum to hold the goal level configuration
+	public String radioButtonOption = "first10";
 
 	/** number of samples used to calculate rate */
 	private int numRateSamples = 10;
@@ -152,8 +155,13 @@ public class DiceRollComputer {
 		System.out.printf("Total possible postfix expressions: %d.\n", bigTotal);
 
 		int operatorSetsPerThread = operatorSets.length / numThreads;
-		
 		// The work is divided between some threads.
+		
+		int goalLevel = 0;
+		if(!radioButtonOption.equals("first10")) {
+			System.out.println("going to search for one equation of level " + radioButtonOption);
+			goalLevel = Integer.valueOf(radioButtonOption);
+		}
 		
 		System.out.println("Forking " + numThreads + " worker threads.");
 		DiceRollWorker[] workers = new DiceRollWorker[numThreads];
@@ -164,6 +172,8 @@ public class DiceRollComputer {
 			cdr.operatorSets = operatorSets;
 			cdr.startIndex = i*operatorSetsPerThread;
 			cdr.stopIndex = (i+1)*operatorSetsPerThread;
+			cdr.goalLevel = goalLevel;
+			cdr.threadNum = i;
 			workers[i] = cdr;
 			System.out.printf("  Thread #%d using range (%4d..%4d)\n", i, cdr.startIndex, cdr.stopIndex);
 		}
@@ -195,35 +205,25 @@ public class DiceRollComputer {
 		long tickRateMillis = (long) (tickRate * 1000);
 		do {
 			try {
-				System.out.println("sleeping for " + tickRateMillis);
 				Thread.sleep(tickRateMillis);
 			} catch (InterruptedException ex) {
 				ex.printStackTrace();
 			}
 
 			float progress = getAverageProgress(workers);
-			System.out.println("progress " + progress);
 			if (progress >= 100) {
-				System.out.println("progress >= 100");
 				break;
 			}
 
 			shiftRight(rateSamples);
-			System.out.println("shifted right");
 			// Rate = Delta / Time
 			rateSamples[0] = (progress - lastProgress) / tickRate;
-			System.out.println("rateSamples" + rateSamples[0]);
 			numSamples++;
-			System.out.println("numSamples " + numSamples);
 			float elapsedTime = tickRate * numSamples;
-			System.out.println("elapsedTime " + elapsedTime);
 			float smoothRate = getSmoothRate(rateSamples, numSamples);
-			System.out.println("smoothRate " + smoothRate);
 			// Time = Delta / Rate
 			neta = (100 - progress) / smoothRate;
-			System.out.println("neta " + neta);
 			float total = elapsedTime + neta;
-			System.out.println("total " + total);
 			System.out.printf("  %05.2f%%; Elapsed: %5.2f seconds; NETA: %5.2f seconds; Total: %5.2f\n", progress,
 					elapsedTime, neta, total);
 
@@ -232,7 +232,6 @@ public class DiceRollComputer {
 				System.out.println("next tick will waste time!");
 				break;
 			}
-			System.out.println("continuing!");
 			lastProgress = progress;
 		} while (true);
 		System.out.println("done!");
@@ -259,7 +258,7 @@ public class DiceRollComputer {
 	   
 		long timeSpentCalculating = maxEndTime - startTime;
 		System.out.printf("Calculated %5d Prime Solutions in %d millis (%d seconds).\n", permutationSet.size(), timeSpentCalculating, timeSpentCalculating/1000);
- 
+
 		List<PostfixPermutation> permutations = new LinkedList<>(permutationSet);
 		permutations.sort(comp);
 		printPermutations(permutations);
@@ -295,14 +294,11 @@ public class DiceRollComputer {
  
 		int useSamples = Math.min(numSamples-1, rateSamples.length-1);
 		float multiplier = 1;
-		System.out.println("starting for loop in getSmoothRate with useSamples " + useSamples);
 		for (int i = 0; i < useSamples; i++) {
 			float sample = rateSamples[i];
 			multiplier = rateWeights[i];
-			System.out.println("sample " + sample + " multiplier " + multiplier);
 			smoothRate += sample * multiplier;
 		}
-		System.out.println("done with for loop in getSmoothRate");
 		float sample = rateSamples[useSamples];
 //		System.out.printf("    %05.2f x %03.3f\n", sample, multiplier);
 		smoothRate += sample * multiplier;
@@ -315,6 +311,13 @@ public class DiceRollComputer {
 		Collections.sort(permutationsList, comp);
 		int lastTier = -1;
 		int numPrinted = 0;
+//		if (permutationsList.size() == 1) {
+//			System.out.println("There's only one in the list. Printing that.");
+//			PostfixPermutation p = permutationsList.get(1);
+//			System.out.println(p.toString());
+//			System.out.printf("%3d. %s = %3d [Tier %d]\n", numPrinted+1, p.getExpression(), (int) p.getResult().doubleValue(), p.getTier());
+//			return;
+//		}
 		for (PostfixPermutation p : permutationsList) {
 			int currentTier = p.getTier();
 			
@@ -331,14 +334,23 @@ public class DiceRollComputer {
 	}
 	
 	private String getPermutations(Collection<PostfixPermutation> permutations) {
-		System.out.println("getPermutations!");
+		System.out.println("getPermutations invoked");
 		List<PostfixPermutation> permutationsList = new LinkedList<>(permutations);
 		Collections.sort(permutationsList, comp);
+		
 		int lastTier = -1;
 		int numPrinted = 0;
 		StringBuilder sb = new StringBuilder();
-//		Formatter formatter = new Formatter(sb);
-		
+
+//		if (permutationsList.size() == 1) {
+//			System.out.println("There's only one in the list. Returning that.");
+//			PostfixPermutation p = permutationsList.get(1);
+//			System.out.println(p.toString());
+//			String output = String.format("%3d. %s = %3d [Tier %d]\n", numPrinted+1, p.getExpression(), (int) p.getResult().doubleValue(), p.getTier());
+//			System.out.println("output from getPermutations: "  + output);
+//			return output;
+//		}
+//		System.out.println("permutationsList.size() is not 1");
 		String temp = "";
 		for (PostfixPermutation p : permutationsList) {
 			int currentTier = p.getTier();
@@ -346,7 +358,6 @@ public class DiceRollComputer {
 			if (currentTier != lastTier) {
 				sb.append(" ====== TIER " + currentTier + " ====== \n");
 				numPrinted = 0;
-				System.out.println("done with tier" + currentTier);
 			} else if (numPrinted == 10) {
 				continue;
 			}
@@ -379,17 +390,5 @@ public class DiceRollComputer {
 			return o2.getTier() - o1.getTier();
 		}
 	};
-	
-	public int rank (double value) {
-		if ( Double.isInfinite(value)
-		  || Double.isNaN(value)
-		  || value < 0) return 0;
-		
-		for (int t = 0; t < tiers.length; t++) {
-			if (tiers[t] == value) {
-				return (t/3) + 1;
-			}
-		}
-		return 0;
-	}
+
 }

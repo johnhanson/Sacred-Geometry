@@ -16,12 +16,15 @@ import util.PostfixTemplate;
 */
 public class DiceRollWorker implements Runnable {
 	private Thread thread;
+	int threadNum;
 	Set<MySet> operandSet;
 	Set<PostfixTemplate> templates;
 	Operator[][] operatorSets;
 	int startIndex, stopIndex, i;
+	int goalLevel = 0;
 	long endTime;
 	Set<PostfixPermutation> permutationSet = new HashSet<>();
+	static volatile boolean foundEquation = false;
 //	List<PostfixPermutation> permutationSet = new LinkedList<>();
 	
 	public int[] tiers = new int[] {
@@ -47,6 +50,9 @@ public class DiceRollWorker implements Runnable {
 	}
 	
 	public float getProgress() {
+		if (foundEquation) {
+			return 1;
+		}
 		return (float)getIndex()/(float)getRange();
 	}
 	
@@ -57,8 +63,6 @@ public class DiceRollWorker implements Runnable {
 	public Collection<PostfixPermutation> getPermutationSet() {
 		return permutationSet;
 	}
-	
-	
 	
 	public int rank (double value) {
 		if ( Double.isInfinite(value)
@@ -74,7 +78,7 @@ public class DiceRollWorker implements Runnable {
 	}
 	
 	public void run() {
-		System.out.println("thread starting!");
+		System.out.println(threadNum + " thread starting!");
 		for (i = startIndex; i < stopIndex; i++) {
 			Operator[] operators = operatorSets[i];
 //			System.out.printf("%5d/%5d\n",i,operatorSets.length);
@@ -86,8 +90,26 @@ public class DiceRollWorker implements Runnable {
 						permutation.calculate();
 						int rank = rank(permutation.getResult());
 						if (rank > 0) {
-							permutation.setTier(rank);
-							permutationSet.add(permutation);
+							if (goalLevel != 0) {
+								// we specified one exact level we want to solve for
+								if (foundEquation) {
+									// another thread already found a solution. we can break
+									System.out.println("Another thread found the solution. " + threadNum + " thread ending!");
+									endTime = System.currentTimeMillis();
+									return;
+								} else if (rank == goalLevel) {
+									// yay go us. we found it.
+									permutation.setTier(rank);
+									permutationSet.add(permutation);
+									foundEquation = true;
+									System.out.println("We found the solution! " + threadNum + " thread ending!");
+									endTime = System.currentTimeMillis();
+									return;
+								}
+							} else {
+								permutation.setTier(rank);
+								permutationSet.add(permutation);
+							}
 						}
 					} catch (Exception ex) {
 						ex.printStackTrace();
@@ -95,7 +117,7 @@ public class DiceRollWorker implements Runnable {
 				}
 			}
 		}
-		System.out.println("thread ending!");
+		System.out.println("Exausted all of the equations. " + threadNum + " thread ending!");
 		endTime = System.currentTimeMillis();
 	}
 }
